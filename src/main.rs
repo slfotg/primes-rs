@@ -1,4 +1,4 @@
-use bitvec::prelude::*;
+use bitvec::{prelude::*, slice::IterOnes};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -21,6 +21,48 @@ async fn main() {
         size += message.len();
     }
     println!("Size = {}", size);
+
+    let vec = bitvec!(1; 30);
+
+    let seq = PrimeSequence {
+        vec,
+        modulus: 6,
+        start: 5,
+    };
+
+    for p in seq.iter() {
+        println!("{}", p);
+    }
+}
+
+struct PrimeSequence {
+    vec: BitVec,
+    modulus: u32,
+    start: u32,
+}
+
+impl PrimeSequence {
+    fn iter(&self) -> PrimeSequenceIterator<'_> {
+        PrimeSequenceIterator {
+            seq: self,
+            iter: self.vec.iter_ones(),
+        }
+    }
+}
+
+struct PrimeSequenceIterator<'a> {
+    seq: &'a PrimeSequence,
+    iter: IterOnes<'a, usize, Lsb0>,
+}
+
+impl Iterator for PrimeSequenceIterator<'_> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|i| (i as u32) * self.seq.modulus + self.seq.start)
+    }
 }
 
 fn is_prime(p: u32) -> bool {
