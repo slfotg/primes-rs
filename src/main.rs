@@ -1,10 +1,11 @@
-use bitvec::{prelude::*, slice::IterOnes};
+use bitvec::prelude::*;
+use primes_rs::{MappedBitVec, PrimeSequence, WheelMapping};
 use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() {
     let modulus = 30;
-    let max = 10000000;
+    let max = 100;
     let (tx, mut rx) = mpsc::channel(32);
     for i in [7, 11, 13, 17, 19, 23, 29, 31] {
         let tx2 = tx.clone();
@@ -12,57 +13,32 @@ async fn main() {
             let _ = tx2.send(get_primes(i, modulus, max)).await;
         });
     }
-    let _ = tx.send(vec![2, 3, 5]).await;
+    let _ = tx
+        .send(MappedBitVec::new(
+            bitvec![0, 0, 1, 1, 0, 1],
+            WheelMapping::default(),
+        ))
+        .await;
     drop(tx);
 
     let mut size = 0;
+    let mut primes = Vec::with_capacity(9);
     while let Some(message) = rx.recv().await {
-        //println!("GOT = {:?}", message);
+        //println!("GOT = {}", message);
         size += message.len();
+        primes.push(message);
+    }
+    let seq = PrimeSequence::new(&primes[..]);
+    for elem in seq.into_iter() {
+        println!("{}", elem);
     }
     println!("Size = {}", size);
 
-    let vec = bitvec!(1; 30);
-
-    let seq = PrimeSequence {
-        vec,
-        modulus: 6,
-        start: 5,
-    };
-
-    for p in seq.iter() {
+    let smalls = MappedBitVec::new(bitvec![0, 0, 1, 1, 0, 1], WheelMapping::default());
+    for p in smalls.into_iter() {
         println!("{}", p);
     }
-}
-
-struct PrimeSequence {
-    vec: BitVec,
-    modulus: u32,
-    start: u32,
-}
-
-impl PrimeSequence {
-    fn iter(&self) -> PrimeSequenceIterator<'_> {
-        PrimeSequenceIterator {
-            seq: self,
-            iter: self.vec.iter_ones(),
-        }
-    }
-}
-
-struct PrimeSequenceIterator<'a> {
-    seq: &'a PrimeSequence,
-    iter: IterOnes<'a, usize, Lsb0>,
-}
-
-impl Iterator for PrimeSequenceIterator<'_> {
-    type Item = u32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next()
-            .map(|i| (i as u32) * self.seq.modulus + self.seq.start)
-    }
+    println!("{}", smalls);
 }
 
 fn is_prime(p: u32) -> bool {
@@ -75,18 +51,17 @@ fn is_prime(p: u32) -> bool {
     true
 }
 
-fn get_primes(start: u32, delta: u32, max: u32) -> Vec<u32> {
-    let size = (max / delta) - (start / delta) + u32::from((start % delta) <= max % delta);
+fn get_primes(start: u32, modulus: u32, max: u32) -> MappedBitVec {
+    let size = (max / modulus) - (start / modulus) + u32::from((start % modulus) <= max % modulus);
 
     let mut vec = bitvec!(1; size as usize);
+    let mapping = WheelMapping::new(start, modulus);
 
     for (i, mut e) in vec.iter_mut().enumerate() {
-        let p = (i as u32) * delta + start;
+        let p = mapping.apply(i);
         if !is_prime(p) {
             e.set(false);
         }
     }
-    vec.iter_ones()
-        .map(|i| (i as u32) * delta + start)
-        .collect()
+    MappedBitVec::new(vec, mapping)
 }
