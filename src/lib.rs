@@ -7,8 +7,8 @@ use bitvec::vec::BitVec;
 use bitvec::prelude::*;
 
 pub struct WheelMapping {
-    start: u32,
-    modulus: u32,
+    start: u64,
+    modulus: u64,
 }
 
 impl Default for WheelMapping {
@@ -21,12 +21,12 @@ impl Default for WheelMapping {
 }
 
 impl WheelMapping {
-    pub fn new(start: u32, modulus: u32) -> WheelMapping {
+    pub fn new(start: u64, modulus: u64) -> WheelMapping {
         WheelMapping { start, modulus }
     }
 
-    pub fn apply(&self, i: usize) -> u32 {
-        (i as u32) * self.modulus + self.start
+    pub fn apply(&self, i: usize) -> u64 {
+        (i as u64) * self.modulus + self.start
     }
 }
 
@@ -50,7 +50,7 @@ impl MappedBitVec {
 }
 
 impl<'a> IntoIterator for &'a MappedBitVec {
-    type Item = u32;
+    type Item = u64;
 
     type IntoIter = MappedBitVecIterator<'a>;
 
@@ -80,7 +80,7 @@ pub struct MappedBitVecIterator<'a> {
 }
 
 impl Iterator for MappedBitVecIterator<'_> {
-    type Item = u32;
+    type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(index) = self.slice.first_one() {
@@ -105,7 +105,7 @@ impl<'a> PrimeSequence<'a> {
 }
 
 impl<'a> IntoIterator for &'a PrimeSequence<'a> {
-    type Item = u32;
+    type Item = u64;
 
     type IntoIter = PrimeSequenceIterator<'a>;
 
@@ -118,7 +118,7 @@ impl<'a> IntoIterator for &'a PrimeSequence<'a> {
 
 pub struct PrimeSequenceIterator<'a> {
     iters: Vec<MappedBitVecIterator<'a>>,
-    queue: BinaryHeap<Reverse<(u32, usize)>>,
+    queue: BinaryHeap<Reverse<(u64, usize)>>,
 }
 
 impl<'a> PrimeSequenceIterator<'a> {
@@ -129,13 +129,12 @@ impl<'a> PrimeSequenceIterator<'a> {
                 queue.push(Reverse((w, i)));
             }
         }
-        println!("{:?}", queue);
         PrimeSequenceIterator { iters, queue }
     }
 }
 
 impl<'a> Iterator for PrimeSequenceIterator<'a> {
-    type Item = u32;
+    type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
         let head = self.queue.pop();
