@@ -1,153 +1,106 @@
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
-use std::fmt;
+pub mod bitvec;
+pub mod manager;
+pub mod task;
 
-use bitvec::vec::BitVec;
+// impl<'a> IntoIterator for &'a MappedBitVec {
+//     type Item = usize;
 
-use bitvec::prelude::*;
+//     type IntoIter = MappedBitVecIterator<'a>;
 
-pub struct WheelMapping {
-    start: u64,
-    modulus: u64,
-}
+//     fn into_iter(self) -> Self::IntoIter {
+//         MappedBitVecIterator {
+//             offset: 0,
+//             slice: &self.vec,
+//             func: &self.func,
+//         }
+//     }
+// }
 
-impl Default for WheelMapping {
-    fn default() -> Self {
-        Self {
-            start: 0,
-            modulus: 1,
-        }
-    }
-}
+// impl fmt::Display for MappedBitVec {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         let mut elements = Vec::with_capacity(self.len());
+//         for elem in self.into_iter() {
+//             elements.push(format!("{}", elem));
+//         }
+//         write!(f, "[{}]", elements.join(", "))
+//     }
+// }
 
-impl WheelMapping {
-    pub fn new(start: u64, modulus: u64) -> WheelMapping {
-        WheelMapping { start, modulus }
-    }
+// pub struct MappedBitVecIterator<'a> {
+//     offset: usize,
+//     slice: &'a BitSlice,
+//     func: &'a WheelMapping,
+// }
 
-    pub fn apply(&self, i: usize) -> u64 {
-        (i as u64) * self.modulus + self.start
-    }
-}
+// impl Iterator for MappedBitVecIterator<'_> {
+//     type Item = usize;
 
-pub struct MappedBitVec {
-    vec: BitVec,
-    func: WheelMapping,
-}
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if let Some(index) = self.slice.first_one() {
+//             let val = self.func.apply(index + self.offset);
+//             self.offset += index + 1;
+//             self.slice = &self.slice[index + 1..];
+//             Some(val)
+//         } else {
+//             None
+//         }
+//     }
+// }
 
-impl MappedBitVec {
-    pub fn new(vec: BitVec, func: WheelMapping) -> MappedBitVec {
-        MappedBitVec { vec, func }
-    }
+// pub struct PrimeSequence<'a> {
+//     wheels: &'a [MappedBitVec],
+// }
 
-    pub fn len(&self) -> usize {
-        self.vec.count_ones()
-    }
+// impl<'a> PrimeSequence<'a> {
+//     pub fn new(wheels: &'a [MappedBitVec]) -> PrimeSequence<'a> {
+//         PrimeSequence { wheels }
+//     }
+// }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
+// impl<'a> IntoIterator for &'a PrimeSequence<'a> {
+//     type Item = usize;
 
-impl<'a> IntoIterator for &'a MappedBitVec {
-    type Item = u64;
+//     type IntoIter = PrimeSequenceIterator<'a>;
 
-    type IntoIter = MappedBitVecIterator<'a>;
+//     fn into_iter(self) -> Self::IntoIter {
+//         let iters: Vec<MappedBitVecIterator<'a>> =
+//             self.wheels.iter().map(|w| w.into_iter()).collect();
+//         PrimeSequenceIterator::new(iters)
+//     }
+// }
 
-    fn into_iter(self) -> Self::IntoIter {
-        MappedBitVecIterator {
-            offset: 0,
-            slice: &self.vec,
-            func: &self.func,
-        }
-    }
-}
+// pub struct PrimeSequenceIterator<'a> {
+//     iters: Vec<MappedBitVecIterator<'a>>,
+//     queue: BinaryHeap<Reverse<(usize, usize)>>,
+// }
 
-impl fmt::Display for MappedBitVec {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut elements = Vec::with_capacity(self.len());
-        for elem in self.into_iter() {
-            elements.push(format!("{}", elem));
-        }
-        write!(f, "[{}]", elements.join(", "))
-    }
-}
+// impl<'a> PrimeSequenceIterator<'a> {
+//     fn new(mut iters: Vec<MappedBitVecIterator<'a>>) -> PrimeSequenceIterator {
+//         let mut queue = BinaryHeap::with_capacity(iters.len());
+//         for (i, iter) in iters.iter_mut().enumerate() {
+//             if let Some(w) = iter.next() {
+//                 queue.push(Reverse((w, i)));
+//             }
+//         }
+//         PrimeSequenceIterator { iters, queue }
+//     }
+// }
 
-pub struct MappedBitVecIterator<'a> {
-    offset: usize,
-    slice: &'a BitSlice,
-    func: &'a WheelMapping,
-}
+// impl<'a> Iterator for PrimeSequenceIterator<'a> {
+//     type Item = usize;
 
-impl Iterator for MappedBitVecIterator<'_> {
-    type Item = u64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(index) = self.slice.first_one() {
-            let val = self.func.apply(index + self.offset);
-            self.offset += index + 1;
-            self.slice = &self.slice[index + 1..];
-            Some(val)
-        } else {
-            None
-        }
-    }
-}
-
-pub struct PrimeSequence<'a> {
-    wheels: &'a [MappedBitVec],
-}
-
-impl<'a> PrimeSequence<'a> {
-    pub fn new(wheels: &'a [MappedBitVec]) -> PrimeSequence<'a> {
-        PrimeSequence { wheels }
-    }
-}
-
-impl<'a> IntoIterator for &'a PrimeSequence<'a> {
-    type Item = u64;
-
-    type IntoIter = PrimeSequenceIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let iters: Vec<MappedBitVecIterator<'a>> =
-            self.wheels.iter().map(|w| w.into_iter()).collect();
-        PrimeSequenceIterator::new(iters)
-    }
-}
-
-pub struct PrimeSequenceIterator<'a> {
-    iters: Vec<MappedBitVecIterator<'a>>,
-    queue: BinaryHeap<Reverse<(u64, usize)>>,
-}
-
-impl<'a> PrimeSequenceIterator<'a> {
-    fn new(mut iters: Vec<MappedBitVecIterator<'a>>) -> PrimeSequenceIterator {
-        let mut queue = BinaryHeap::with_capacity(iters.len());
-        for (i, iter) in iters.iter_mut().enumerate() {
-            if let Some(w) = iter.next() {
-                queue.push(Reverse((w, i)));
-            }
-        }
-        PrimeSequenceIterator { iters, queue }
-    }
-}
-
-impl<'a> Iterator for PrimeSequenceIterator<'a> {
-    type Item = u64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let head = self.queue.pop();
-        if let Some(elem) = head {
-            let next = elem.0 .0;
-            let index = elem.0 .1;
-            let iter = &mut self.iters[index];
-            if let Some(p) = iter.next() {
-                self.queue.push(Reverse((p, index)));
-            }
-            Some(next)
-        } else {
-            None
-        }
-    }
-}
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let head = self.queue.pop();
+//         if let Some(elem) = head {
+//             let next = elem.0 .0;
+//             let index = elem.0 .1;
+//             let iter = &mut self.iters[index];
+//             if let Some(p) = iter.next() {
+//                 self.queue.push(Reverse((p, index)));
+//             }
+//             Some(next)
+//         } else {
+//             None
+//         }
+//     }
+// }
