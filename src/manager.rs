@@ -2,10 +2,7 @@ use std::{cmp::Reverse, collections::BinaryHeap};
 
 use tokio::sync::{mpsc, oneshot};
 
-use crate::{
-    bitvec::MappedBitVec,
-    task::{Command, PrimeInfo},
-};
+use crate::task::{Command, PrimeInfo};
 
 type PriorityQueue = BinaryHeap<Reverse<PrimeInfo>>;
 
@@ -72,7 +69,7 @@ impl SpokeManager {
         let _ = self.sender.send(Command::Sieve { prime, composite }).await;
     }
 
-    pub async fn get_spoke(&self) -> Result<MappedBitVec, tokio::sync::oneshot::error::RecvError> {
+    pub async fn get_spoke(&self) -> Result<Vec<usize>, tokio::sync::oneshot::error::RecvError> {
         let (tx, rx) = oneshot::channel();
         let _ = self.sender.send(Command::Break { resp: tx }).await;
         rx.await

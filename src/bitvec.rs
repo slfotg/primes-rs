@@ -1,6 +1,6 @@
 use bitvec::vec::BitVec;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MappedBitVec {
     vec: BitVec,
     offset: usize,
@@ -48,7 +48,40 @@ impl MappedBitVec {
     }
 
     pub fn to_vec(&self) -> Vec<usize> {
-        self.vec.iter_ones().map(|i| self.apply(i)).collect()
+        let mut vec = Vec::with_capacity(self.len());
+        vec.extend(self.vec.iter_ones().map(|i| self.apply(i)));
+        vec
+    }
+}
+
+impl IntoIterator for MappedBitVec {
+    type Item = usize;
+
+    type IntoIter = MappedBitVecIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MappedBitVecIterator {
+            index: 0,
+            vec: self,
+        }
+    }
+}
+
+pub struct MappedBitVecIterator {
+    index: usize,
+    vec: MappedBitVec,
+}
+
+impl Iterator for MappedBitVecIterator {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some((index, prime)) = self.vec.first_one(self.index) {
+            self.index = index + 1;
+            Some(prime)
+        } else {
+            None
+        }
     }
 }
 
@@ -108,5 +141,12 @@ mod tests {
         assert_eq!(Some((3, 22)), x.first_one(3));
         assert_eq!(Some((4, 29)), x.first_one(4));
         assert_eq!(None, x.first_one(5));
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let x = MappedBitVec::new(bitvec![1; 5], 7, 1);
+        let x: Vec<usize> = x.into_iter().collect();
+        assert_eq!(vec![1, 8, 15, 22, 29], x);
     }
 }

@@ -16,7 +16,7 @@ pub enum Command {
         composite: usize,
     },
     Break {
-        resp: oneshot::Sender<MappedBitVec>,
+        resp: oneshot::Sender<Vec<usize>>,
     },
 }
 
@@ -32,12 +32,18 @@ fn calculate_next_prime(
     from_index: usize,
     resp: tokio::sync::oneshot::Sender<Option<(usize, usize, usize)>>,
 ) {
-    debug!("Calculating next prime");
     let _ = resp.send(if let Some((next_index, p)) = wheel.first_one(from_index) {
         Some((p, next_index, thread_id))
     } else {
         None
     });
+}
+
+fn sieve(prime: usize, composite: usize, modulus: usize, sub: usize, wheel: &mut MappedBitVec) {
+    let p_index = (composite / modulus) - sub;
+    for i in (p_index..wheel.max_len()).step_by(prime) {
+        wheel.set(i, false);
+    }
 }
 
 pub async fn manage_wheel(
@@ -47,22 +53,21 @@ pub async fn manage_wheel(
     modulus: usize,
     max: usize,
 ) {
+    let sub = offset / modulus;
     let mut wheel = MappedBitVec::new(initialize_vec(offset, modulus, max), modulus, offset);
     while let Some(command) = rx.recv().await {
         match command {
             Command::NextPrimeFrom { from_index, resp } => {
-                calculate_next_prime(thread_id, &wheel, from_index, resp)
+                debug!("Calculating next prime");
+                calculate_next_prime(thread_id, &wheel, from_index, resp);
             }
             Command::Sieve { prime, composite } => {
                 debug!("Sieving from {}", composite);
-                let p_index = (composite / modulus) - (offset / modulus);
-                for i in (p_index..wheel.max_len()).step_by(prime) {
-                    wheel.set(i, false);
-                }
+                sieve(prime, composite, modulus, sub, &mut wheel);
             }
             Command::Break { resp } => {
                 debug!("Returning wheel");
-                let _ = resp.send(wheel);
+                let _ = resp.send(wheel.to_vec());
                 break;
             }
         }

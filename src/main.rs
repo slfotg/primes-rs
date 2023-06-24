@@ -5,7 +5,7 @@ use primes_rs::{manager::SpokeManager, task};
 use tokio::sync::mpsc;
 
 const MOD: usize = 30;
-const _SMALL_PRIMES: [usize; 3] = [2, 3, 5];
+const SMALL_PRIMES: [usize; 3] = [2, 3, 5];
 const RELATIVE_PRIMES_SIZE: usize = 8;
 const RELATIVE_PRIMES: [usize; RELATIVE_PRIMES_SIZE] = [7, 11, 13, 17, 19, 23, 29, 31];
 const DIFFS: [[usize; RELATIVE_PRIMES_SIZE]; RELATIVE_PRIMES_SIZE] = [
@@ -29,11 +29,9 @@ const MULTIPLICATION_TABLE: [[usize; RELATIVE_PRIMES_SIZE]; RELATIVE_PRIMES_SIZE
     [7, 0, 1, 2, 3, 4, 5, 6],
 ];
 
-fn main2() {
+fn sieve(max: usize) -> Vec<usize> {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        let max = 1_000_000_000;
-
+    let (mut len, primes_vec) = rt.block_on(async {
         let managers = RELATIVE_PRIMES
             .into_iter()
             .enumerate()
@@ -79,17 +77,32 @@ fn main2() {
                 }
             }
         }
-        let mut size = 3;
+        let mut primes = Vec::with_capacity(managers.len());
+        let mut len = 0;
         for manager in managers.iter() {
             if let Ok(spoke) = manager.get_spoke().await {
-                size += spoke.len();
+                len += spoke.len();
+                primes.push(spoke);
             }
         }
-        println!("Size: {}", size);
+        (len, primes)
     });
+    len += SMALL_PRIMES.len();
+    println!("{len}");
+    let mut primes: Vec<usize> = vec![0; len];
+    let mut index = 0;
+    primes[index..SMALL_PRIMES.len()].copy_from_slice(&SMALL_PRIMES);
+    index += SMALL_PRIMES.len();
+    for v in primes_vec {
+        primes[index..index + v.len()].copy_from_slice(&v);
+        index += v.len();
+    }
+    primes.sort();
+    primes
 }
 
 fn main() {
     env_logger::init();
-    main2();
+    let primes: Vec<usize> = sieve(10000000000);
+    println!("{:?}", primes.len());
 }
