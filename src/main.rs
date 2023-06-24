@@ -88,7 +88,7 @@ fn sieve(max: usize) -> Vec<usize> {
         (len, primes)
     });
     len += SMALL_PRIMES.len();
-    println!("{len}");
+
     let mut primes: Vec<usize> = vec![0; len];
     let mut index = 0;
     primes[index..SMALL_PRIMES.len()].copy_from_slice(&SMALL_PRIMES);
@@ -103,6 +103,6 @@ fn sieve(max: usize) -> Vec<usize> {
 
 fn main() {
     env_logger::init();
-    let primes: Vec<usize> = sieve(10000000000);
+    let primes: Vec<usize> = sieve(1_000_000_000);
     println!("{:?}", primes.len());
 }
