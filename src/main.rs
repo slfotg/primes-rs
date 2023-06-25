@@ -2,7 +2,7 @@ use std::{cmp::Reverse, collections::BinaryHeap};
 
 use log::debug;
 use primes_rs::{manager::SpokeManager, task};
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, task::JoinSet};
 
 const MOD: usize = 30;
 const SMALL_PRIMES: [usize; 3] = [2, 3, 5];
@@ -32,17 +32,13 @@ const MULTIPLICATION_TABLE: [[usize; RELATIVE_PRIMES_SIZE]; RELATIVE_PRIMES_SIZE
 fn sieve(max: usize) -> Vec<usize> {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (mut len, primes_vec) = rt.block_on(async {
-        let managers = RELATIVE_PRIMES
-            .into_iter()
-            .enumerate()
-            .map(|(i, p)| {
-                let (ctx, crx) = mpsc::channel(32);
-                tokio::spawn(async move {
-                    task::manage_wheel(crx, i, p, MOD, max).await;
-                });
-                SpokeManager::new(ctx)
-            })
-            .collect::<Vec<_>>();
+        let mut tasks: JoinSet<Vec<usize>> = JoinSet::new();
+        let mut managers = Vec::with_capacity(RELATIVE_PRIMES_SIZE);
+        RELATIVE_PRIMES.into_iter().enumerate().for_each(|(i, p)| {
+            let (ctx, crx) = mpsc::channel(32);
+            tasks.spawn(async move { task::manage_wheel(crx, i, p, MOD, max).await });
+            managers.push(SpokeManager::new(ctx));
+        });
 
         // Initialze min BinaryHeap
         let mut min_queue = BinaryHeap::with_capacity(RELATIVE_PRIMES_SIZE);
@@ -77,12 +73,17 @@ fn sieve(max: usize) -> Vec<usize> {
                 }
             }
         }
+
+        for manager in managers.iter() {
+            manager.get_spoke().await
+        }
+
         let mut primes = Vec::with_capacity(managers.len());
         let mut len = 0;
-        for manager in managers.iter() {
-            if let Ok(spoke) = manager.get_spoke().await {
-                len += spoke.len();
-                primes.push(spoke);
+        while let Some(res) = tasks.join_next().await {
+            if let Ok(wheel) = res {
+                len += wheel.len();
+                primes.push(wheel);
             }
         }
         (len, primes)
@@ -103,6 +104,7 @@ fn sieve(max: usize) -> Vec<usize> {
 
 fn main() {
     env_logger::init();
-    let primes: Vec<usize> = sieve(1_000_000_000);
+    let primes: Vec<usize> = sieve(100_000_000_000);
     println!("{:?}", primes.len());
+    println!("{:?} ... {:?}", &primes[..5], &primes[primes.len() - 5..])
 }
